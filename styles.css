@@ -110,6 +110,7 @@ h1 {
 .hero-slider-wrap { margin-top: 10px; }
 
 .hero-slider {
+  position: relative;
   min-height: 170px;
   border-radius: 10px;
   overflow: hidden;
