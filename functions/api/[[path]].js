@@ -130,7 +130,20 @@ function originAllowed(request, allowedOrigins) {
     const reqOrigin = new URL(request.url).origin.toLowerCase();
     if (allowedOrigins.includes(reqOrigin)) return true;
   } catch {
-    return false;
+    // fall through
+  }
+
+  // Host header fallback for environments where Origin/Referer are trimmed.
+  const reqHost = String(request.headers.get("host") || "").trim().toLowerCase();
+  if (reqHost) {
+    for (const allowed of allowedOrigins) {
+      try {
+        const allowedHost = new URL(allowed).host.toLowerCase();
+        if (allowedHost && allowedHost === reqHost) return true;
+      } catch {
+        // ignore malformed entry
+      }
+    }
   }
 
   return false;
@@ -356,16 +369,6 @@ export async function onRequest(context) {
 
   if (request.method !== "GET") return deny(404);
 
-  if (
-    !hasAcceptJson(request) ||
-    !validFetchSite(request) ||
-    !validFetchContext(request) ||
-    !validRequestedWith(request) ||
-    !originAllowed(request, allowedOrigins)
-  ) {
-    return deny(403);
-  }
-
   const pathValue = Array.isArray(params.path) ? params.path.join("/") : params.path;
   const normalizedPath = normalizePath(pathValue);
 
@@ -373,9 +376,24 @@ export async function onRequest(context) {
     return deny(404);
   }
 
+  const isTokenPath = normalizedPath === "/token";
+  const hasCommonSecurityContext =
+    hasAcceptJson(request) &&
+    validFetchSite(request) &&
+    validFetchContext(request) &&
+    originAllowed(request, allowedOrigins);
+
+  // Token endpoint: robust checks for Pages/browser variability.
+  if (isTokenPath) {
+    if (!hasCommonSecurityContext) return deny(403);
+  } else {
+    // Data endpoints: strict browser-style requirement + token.
+    if (!hasCommonSecurityContext || !validRequestedWith(request)) return deny(403);
+  }
+
   const clientIp = getClientIp(request);
 
-  if (normalizedPath === "/token") {
+  if (isTokenPath) {
     const tokenLimit = checkRateLimit("token", clientIp, MAX_TOKEN_REQ_PER_WINDOW);
     if (!tokenLimit.ok) return deny(429);
 
