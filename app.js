@@ -213,6 +213,7 @@ async function loadItems() {
 }
 
 async function loadSidebarTrending() {
+  if (!sidebarTrending) return;
   try {
     const trendingData = await fetchJson("/api/trending/movies");
     const trendingItems = normalizeResponse(trendingData, "trending").slice(0, 14);
@@ -273,6 +274,7 @@ async function loadSlider() {
 }
 
 function renderSlider() {
+  if (!heroSlider) return;
   if (!state.sliderItems.length) {
     heroSlider.innerHTML = '<p class="status">No slider data.</p>';
     return;
@@ -365,6 +367,7 @@ function syncFilterOptions() {
 }
 
 function renderList() {
+  if (!app || !template || !paginationWrap) return;
   paginationWrap.hidden = false;
   applyLocalFilters();
 
@@ -408,6 +411,7 @@ function renderPagination(totalPages) {
   const prev = document.getElementById("prevPage");
   const next = document.getElementById("nextPage");
   const goInput = document.getElementById("goPageInput");
+  if (!prev || !next || !goInput || !pageNumbers) return;
 
   prev.disabled = state.page <= 1;
   next.disabled = state.page >= totalPages;
@@ -719,6 +723,7 @@ function renderDetailView(item, links, seasonSelected, hblinksRows = []) {
 }
 
 function renderHblinkPage(postData) {
+  if (!app) return;
   const linksHtml = postData.links.length
     ? postData.links.map((l) => `
       <div class="link-row">
@@ -741,13 +746,14 @@ function renderHblinkPage(postData) {
     </section>
   `;
 
-  document.getElementById("closeHblink").addEventListener("click", () => {
+  document.getElementById("closeHblink")?.addEventListener("click", () => {
     if (window.history.length > 1) window.history.back();
     else window.location.hash = "#";
   });
 }
 
 async function renderRoute() {
+  if (!app || !paginationWrap) return;
   const hash = window.location.hash || "#";
 
   if (hash.startsWith("#/hblink/")) {
@@ -860,7 +866,7 @@ function bindEvents() {
     });
   });
 
-  document.getElementById("applyFilters").addEventListener("click", async () => {
+  document.getElementById("applyFilters")?.addEventListener("click", async () => {
     state.page = 1;
     if (window.location.hash.startsWith("#/post/") || window.location.hash.startsWith("#/hblink/")) {
       window.location.hash = "#";
@@ -869,25 +875,26 @@ function bindEvents() {
     await renderRoute();
   });
 
-  document.getElementById("prevPage").addEventListener("click", () => {
+  document.getElementById("prevPage")?.addEventListener("click", () => {
     state.page -= 1;
     renderList();
   });
 
-  document.getElementById("nextPage").addEventListener("click", () => {
+  document.getElementById("nextPage")?.addEventListener("click", () => {
     state.page += 1;
     renderList();
   });
 
-  document.getElementById("goPage").addEventListener("click", () => {
-    const value = Number(document.getElementById("goPageInput").value);
+  document.getElementById("goPage")?.addEventListener("click", () => {
+    const input = document.getElementById("goPageInput");
+    const value = Number(input?.value || "");
     if (Number.isFinite(value) && value > 0) {
       state.page = value;
       renderList();
     }
   });
 
-  document.getElementById("backButton").addEventListener("click", () => {
+  document.getElementById("backButton")?.addEventListener("click", () => {
     if (window.history.length > 1) window.history.back();
     else window.location.hash = "#";
   });
