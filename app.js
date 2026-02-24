@@ -866,11 +866,8 @@ function bindEvents() {
         if (categoryFilter) categoryFilter.value = "";
         searchInput.value = "";
       } else if (key === "ultra_4k") {
-        if (presetSelect) presetSelect.value = "all";
-        searchInput.value = "2160p 4k ultra hd";
-        if (!setCategoryByPriority(["2160p", "4K", "4k", "Ultra HD", "UltraHD"])) {
-          if (categoryFilter) categoryFilter.value = "";
-        }
+        window.location.href = "./4k.html";
+        return;
       } else if (key === "anime") {
         if (presetSelect) presetSelect.value = "anime_feed";
         if (categoryFilter) categoryFilter.value = "Anime";
