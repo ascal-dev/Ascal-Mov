@@ -95,7 +95,7 @@ function getClientIp(request) {
 function parseAllowedOrigins(raw) {
   return String(raw || "")
     .split(",")
-    .map((v) => normalizeOrigin(v))
+    .map((v) => String(v || "").trim().toLowerCase())
     .filter(Boolean);
 }
 
@@ -111,39 +111,67 @@ function normalizeOrigin(value) {
 
 function originAllowed(request, allowedOrigins) {
   if (allowedOrigins.length === 0) return false;
+  const candidates = new Set();
+
   const origin = normalizeOrigin(request.headers.get("origin"));
+  if (origin) candidates.add(origin);
+
   const referer = request.headers.get("referer");
-
-  if (origin && allowedOrigins.includes(origin)) return true;
-
   if (referer) {
     try {
       const refOrigin = new URL(referer).origin.toLowerCase();
-      if (allowedOrigins.includes(refOrigin)) return true;
+      if (refOrigin) candidates.add(refOrigin);
     } catch {
-      return false;
+      // ignore malformed referer
     }
   }
 
-  // Some same-origin GET fetches may omit Origin/Referer; allow only when request host is explicitly allowlisted.
   try {
     const reqOrigin = new URL(request.url).origin.toLowerCase();
-    if (allowedOrigins.includes(reqOrigin)) return true;
+    if (reqOrigin) candidates.add(reqOrigin);
   } catch {
-    // fall through
+    // ignore
   }
 
-  // Host header fallback for environments where Origin/Referer are trimmed.
   const reqHost = String(request.headers.get("host") || "").trim().toLowerCase();
-  if (reqHost) {
-    for (const allowed of allowedOrigins) {
+  if (reqHost) candidates.add(`https://${reqHost}`);
+
+  const candidateHosts = Array.from(candidates)
+    .map((value) => {
       try {
-        const allowedHost = new URL(allowed).host.toLowerCase();
-        if (allowedHost && allowedHost === reqHost) return true;
+        return new URL(value).host.toLowerCase();
       } catch {
-        // ignore malformed entry
+        return "";
       }
+    })
+    .filter(Boolean);
+
+  for (const allowed of allowedOrigins) {
+    let allowedOrigin = "";
+    let allowedHost = "";
+
+    if (allowed.startsWith("http://") || allowed.startsWith("https://")) {
+      try {
+        const parsed = new URL(allowed);
+        allowedOrigin = parsed.origin.toLowerCase();
+        allowedHost = parsed.host.toLowerCase();
+      } catch {
+        continue;
+      }
+    } else if (allowed.startsWith("*.")) {
+      allowedHost = allowed.slice(2);
+    } else {
+      allowedHost = allowed.replace(/^\/+|\/+$/g, "");
     }
+
+    if (allowedOrigin && candidates.has(allowedOrigin)) return true;
+
+    if (allowed.startsWith("*.")) {
+      if (candidateHosts.some((h) => h === allowedHost || h.endsWith(`.${allowedHost}`))) return true;
+      continue;
+    }
+
+    if (allowedHost && candidateHosts.includes(allowedHost)) return true;
   }
 
   return false;
