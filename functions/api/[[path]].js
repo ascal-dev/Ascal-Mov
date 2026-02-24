@@ -1,4 +1,4 @@
-﻿const TOKEN_TTL_SECONDS = 45;
+const TOKEN_TTL_SECONDS = 45;
 const RATE_WINDOW_MS = 60 * 1000;
 const MAX_API_REQ_PER_WINDOW = 180;
 const MAX_TOKEN_REQ_PER_WINDOW = 50;
@@ -323,7 +323,8 @@ export async function onRequest(context) {
     return deny(401);
   }
 
-  const target = new URL(normalizedPath, apiOrigin);
+  const upstreamPath = normalizedPath === "/health" ? "/health" : `/api${normalizedPath}`;
+  const target = new URL(upstreamPath, apiOrigin);
   const upstreamHeaders = {
     Accept: "application/json",
     "User-Agent": "HicineSecureWorker/1.1"
