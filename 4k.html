@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>4kMovieArea</title>
+  <meta name="description" content="4kMovieArea powered by TMDB and Videasy player endpoints." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Oswald:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles-4k.css" />
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>4kMovieArea</h1>
+      <p>TMDB + Videasy</p>
+    </div>
+    <a class="btn" href="./index.html">MovieArea</a>
+  </header>
+
+  <section class="controls">
+    <input id="searchInput4k" type="search" placeholder="Search title..." autocomplete="off" />
+    <select id="tagFilter4k">
+      <option value="">All Types</option>
+      <option value="4K">4K</option>
+      <option value="Hollywood">Hollywood</option>
+      <option value="Bolly">Bolly</option>
+      <option value="South">South</option>
+      <option value="Anime">Anime</option>
+    </select>
+    <button id="apply4k" class="btn" type="button">Apply</button>
+  </section>
+
+  <div class="layout-shell">
+    <aside class="side4k">
+      <h2>Top Picks</h2>
+      <div id="sidebar4k" class="side-list"></div>
+    </aside>
+
+    <main id="app4k" class="app4k"></main>
+  </div>
+
+  <footer class="pager" id="pager4k">
+    <button id="prev4k" class="btn" type="button">Previous</button>
+    <div id="pages4k"></div>
+    <button id="next4k" class="btn" type="button">Next</button>
+  </footer>
+
+  <template id="card4k">
+    <article class="card">
+      <img class="poster" alt="" loading="lazy" />
+      <div class="meta">
+        <h2 class="title"></h2>
+        <p class="date"></p>
+        <p class="tags"></p>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="./app-4k.js"></script>
+</body>
+</html>
