@@ -95,24 +95,42 @@ function getClientIp(request) {
 function parseAllowedOrigins(raw) {
   return String(raw || "")
     .split(",")
-    .map((v) => v.trim())
+    .map((v) => normalizeOrigin(v))
     .filter(Boolean);
+}
+
+function normalizeOrigin(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw).origin.toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
 function originAllowed(request, allowedOrigins) {
   if (allowedOrigins.length === 0) return false;
-  const origin = request.headers.get("origin");
+  const origin = normalizeOrigin(request.headers.get("origin"));
   const referer = request.headers.get("referer");
 
   if (origin && allowedOrigins.includes(origin)) return true;
 
   if (referer) {
     try {
-      const refOrigin = new URL(referer).origin;
+      const refOrigin = new URL(referer).origin.toLowerCase();
       if (allowedOrigins.includes(refOrigin)) return true;
     } catch {
       return false;
     }
+  }
+
+  // Some same-origin GET fetches may omit Origin/Referer; allow only when request host is explicitly allowlisted.
+  try {
+    const reqOrigin = new URL(request.url).origin.toLowerCase();
+    if (allowedOrigins.includes(reqOrigin)) return true;
+  } catch {
+    return false;
   }
 
   return false;
@@ -271,13 +289,14 @@ function hasAcceptJson(request) {
 
 function validFetchSite(request) {
   const value = (request.headers.get("sec-fetch-site") || "").toLowerCase();
-  return value === "same-origin" || value === "same-site";
+  return value === "" || value === "same-origin" || value === "same-site";
 }
 
 function validFetchContext(request) {
   const mode = (request.headers.get("sec-fetch-mode") || "").toLowerCase();
   const dest = (request.headers.get("sec-fetch-dest") || "").toLowerCase();
-  return mode === "cors" && dest === "empty";
+  if (!mode && !dest) return true;
+  return (mode === "cors" || mode === "same-origin") && (dest === "empty" || dest === "");
 }
 
 function validRequestedWith(request) {
@@ -289,14 +308,14 @@ function isHblinksPostPath(path) {
   return path.startsWith(EXT_HBLINKS_POST_PREFIX);
 }
 
-async function proxyJsonFromUrl(targetUrl, cacheTtl = 120) {
+async function proxyJsonFromUrl(targetUrl, cacheTtl = 120, userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36") {
   let upstream;
   try {
     upstream = await fetch(targetUrl, {
       method: "GET",
       headers: {
         Accept: "application/json",
-        "User-Agent": "HicineSecureWorker/2.0"
+        "User-Agent": userAgent
       },
       cf: { cacheEverything: true, cacheTtl }
     });
@@ -305,14 +324,20 @@ async function proxyJsonFromUrl(targetUrl, cacheTtl = 120) {
   }
 
   const ctype = (upstream.headers.get("Content-Type") || "").toLowerCase();
-  if (!upstream.ok || !ctype.includes("application/json")) return deny(404);
+  if (!upstream.ok) return deny(404);
 
-  const body = await upstream.arrayBuffer();
+  // Some upstreams return JSON with non-json content-type; keep strict but tolerant parsing.
+  const text = await upstream.text();
+  const trimmed = text.trim();
+  const looksLikeJson = trimmed.startsWith("{") || trimmed.startsWith("[");
+  if (!ctype.includes("application/json") && !looksLikeJson) return deny(404);
+
+  const body = new TextEncoder().encode(text);
   return new Response(body, {
     status: 200,
     headers: {
       ...securityHeaders(),
-      "Content-Type": upstream.headers.get("Content-Type") || "application/json; charset=utf-8",
+      "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=300"
     }
   });
