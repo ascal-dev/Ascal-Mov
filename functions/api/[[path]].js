@@ -10,6 +10,10 @@ const REQUIRED_XRW = "xmlhttprequest";
 const EXT_SLIDER = "/ext/slider";
 const EXT_HBLINKS_SEARCH = "/ext/hblinks-search";
 const EXT_HBLINKS_POST_PREFIX = "/ext/hblinks-post/";
+const EXT_TMDB_DISCOVER = "/ext/tmdb-discover";
+const EXT_TMDB_MOVIE_PREFIX = "/ext/tmdb-movie/";
+const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
+const TMDB_API_KEY_FALLBACK = "8ec15bbd719f54aae68a5ffed9e373b8";
 
 const ALLOWED = [
   /^\/health$/,
@@ -22,7 +26,9 @@ const ALLOWED = [
   /^\/(movies|series|anime)\/[A-Za-z0-9._:-]+$/,
   /^\/ext\/slider$/,
   /^\/ext\/hblinks-search$/,
-  /^\/ext\/hblinks-post\/[0-9]+$/
+  /^\/ext\/hblinks-post\/[0-9]+$/,
+  /^\/ext\/tmdb-discover$/,
+  /^\/ext\/tmdb-movie\/[0-9]+$/
 ];
 
 const rateStore = new Map();
@@ -349,6 +355,54 @@ function isHblinksPostPath(path) {
   return path.startsWith(EXT_HBLINKS_POST_PREFIX);
 }
 
+function isTmdbMoviePath(path) {
+  return path.startsWith(EXT_TMDB_MOVIE_PREFIX);
+}
+
+function tmdbApiKey(env) {
+  return String(env.TMDB_API_KEY || TMDB_API_KEY_FALLBACK || "").trim();
+}
+
+async function fetchTmdbJson(url, cacheTtl = 180) {
+  let upstream;
+  try {
+    upstream = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MovieArea4K/1.0"
+      },
+      cf: { cacheEverything: true, cacheTtl }
+    });
+  } catch {
+    return null;
+  }
+  if (!upstream.ok) return null;
+  try {
+    return await upstream.json();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeTmdbMovieItem(raw, categories = []) {
+  if (!raw || !raw.id) return null;
+  const posterPath = raw.poster_path || "";
+  const backdropPath = raw.backdrop_path || "";
+  return {
+    id: String(raw.id),
+    tmdbId: raw.id,
+    title: raw.title || raw.name || "Untitled",
+    date: raw.release_date || raw.first_air_date || "",
+    featured_image: posterPath ? `${TMDB_IMAGE_BASE}/w500${posterPath}` : "",
+    backdrop_image: backdropPath ? `${TMDB_IMAGE_BASE}/w780${backdropPath}` : "",
+    categories,
+    contentType: "4kMovieArea",
+    collection: "4kmoviearea",
+    raw
+  };
+}
+
 async function proxyJsonFromUrl(targetUrl, cacheTtl = 120, userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36") {
   let upstream;
   try {
@@ -469,6 +523,111 @@ export async function onRequest(context) {
     if (!/^\d+$/.test(id)) return deny(404);
     const target = `https://hblinks.dad/wp-json/wp/v2/posts/${id}`;
     return proxyJsonFromUrl(target, 180);
+  }
+
+  if (normalizedPath === EXT_TMDB_DISCOVER) {
+    const key = tmdbApiKey(env);
+    if (!key) return deny(503);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const sources = [
+      {
+        cat: ["4K", "Hollywood"],
+        url: `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(key)}&language=en-US&sort_by=popularity.desc&include_adult=false&include_video=false&page=1&primary_release_date.lte=${today}`
+      },
+      {
+        cat: ["4K", "Hollywood"],
+        url: `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(key)}&language=en-US&sort_by=popularity.desc&include_adult=false&include_video=false&page=2&primary_release_date.lte=${today}`
+      },
+      {
+        cat: ["Bolly", "South"],
+        url: `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(key)}&language=en-US&sort_by=popularity.desc&with_original_language=hi&page=1`
+      },
+      {
+        cat: ["South"],
+        url: `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(key)}&language=en-US&sort_by=popularity.desc&with_original_language=ta&page=1`
+      },
+      {
+        cat: ["South"],
+        url: `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(key)}&language=en-US&sort_by=popularity.desc&with_original_language=te&page=1`
+      },
+      {
+        cat: ["Anime"],
+        url: `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(key)}&language=en-US&sort_by=popularity.desc&with_original_language=ja&page=1`
+      }
+    ];
+
+    const settled = await Promise.allSettled(sources.map((s) => fetchTmdbJson(s.url, 180)));
+    const byId = new Map();
+
+    settled.forEach((entry, i) => {
+      if (entry.status !== "fulfilled" || !entry.value) return;
+      const rows = Array.isArray(entry.value.results) ? entry.value.results : [];
+      for (const row of rows) {
+        const normalized = normalizeTmdbMovieItem(row, sources[i].cat);
+        if (!normalized?.id) continue;
+        if (!byId.has(normalized.id)) {
+          byId.set(normalized.id, normalized);
+        } else {
+          const existing = byId.get(normalized.id);
+          const mergedCats = Array.from(new Set([...(existing.categories || []), ...(normalized.categories || [])]));
+          existing.categories = mergedCats;
+          byId.set(normalized.id, existing);
+        }
+      }
+    });
+
+    const list = Array.from(byId.values())
+      .filter((x) => x.featured_image)
+      .slice(0, 120);
+
+    return json({ results: list }, 200, {
+      "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=300"
+    });
+  }
+
+  if (isTmdbMoviePath(normalizedPath)) {
+    const key = tmdbApiKey(env);
+    if (!key) return deny(503);
+    const id = normalizedPath.slice(EXT_TMDB_MOVIE_PREFIX.length);
+    if (!/^\d+$/.test(id)) return deny(404);
+
+    const lang = (reqUrl.searchParams.get("lang") || "en").trim();
+    const target =
+      `https://db.videasy.net/3/movie/${id}` +
+      `?api_key=${encodeURIComponent(key)}` +
+      `&append_to_response=credits,external_ids,videos,recommendations,translations,similar,images` +
+      `&language=${encodeURIComponent(lang)}`;
+
+    const detail = await fetchTmdbJson(target, 180);
+    if (!detail || !detail.id) return deny(404);
+
+    const posterPath = detail.poster_path ? `${TMDB_IMAGE_BASE}/w500${detail.poster_path}` : "";
+    const backdropPath = detail.backdrop_path ? `${TMDB_IMAGE_BASE}/w1280${detail.backdrop_path}` : "";
+    const out = {
+      id: String(detail.id),
+      tmdbId: detail.id,
+      title: detail.title || "Untitled",
+      date: detail.release_date || "",
+      featured_image: posterPath,
+      backdrop_image: backdropPath,
+      overview: detail.overview || "",
+      runtime: detail.runtime || null,
+      vote_average: detail.vote_average || null,
+      genres: Array.isArray(detail.genres) ? detail.genres.map((g) => g.name).filter(Boolean) : [],
+      credits: detail.credits || {},
+      videos: detail.videos || {},
+      recommendations: detail.recommendations || {},
+      similar: detail.similar || {},
+      images: detail.images || {},
+      external_ids: detail.external_ids || {},
+      contentType: "4kMovieArea",
+      collection: "4kmoviearea"
+    };
+
+    return json(out, 200, {
+      "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=300"
+    });
   }
 
   const upstreamPath = normalizedPath === "/health" ? "/health" : `/api${normalizedPath}`;
