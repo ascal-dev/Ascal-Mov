@@ -244,7 +244,9 @@ async function loadSidebarTrending() {
 }
 
 function normalizeSliderPayload(payload) {
-  const list = Array.isArray(payload) ? payload : payload?.data || payload?.results || payload?.items || [];
+  const list = Array.isArray(payload)
+    ? payload
+    : payload?.tr || payload?.data || payload?.results || payload?.items || [];
   if (!Array.isArray(list)) return [];
 
   return list
