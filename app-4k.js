@@ -164,8 +164,8 @@ function renderList() {
 }
 
 function playerUrl(source, id) {
-  if (source === "autoembed") return `https://player.autoembed.cc/embed/movie/${encodeURIComponent(id)}`;
-  return `https://player.videasy.net/movie/${encodeURIComponent(id)}`;
+  if (source === "autoembed") return `https://player.autoembed.cc/embed/movie/${(id)}`;
+  return `https://player.videasy.net/movie/${(id)}`;
 }
 
 function renderDetail(detail) {
@@ -187,7 +187,7 @@ function renderDetail(detail) {
             <option value="autoembed">AutoEmbed</option>
           </select>
         </div>
-        <iframe id="movieFrame" class="frame" src="${safeText(playerUrl(sourceDefault, id))}" allowfullscreen loading="lazy"></iframe>
+        <iframe id="movieFrame" class="frame" src="${safeText(playerUrl(sourceDefault, id))}" width="100%" height="100%" allowfullscreen="" title="Video Player - The Housemaid" referrerpolicy="origin" loading="eager" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
       </div>
       <aside class="info">
         <p><strong>Release:</strong> ${safeText(formatDate(detail.date))}</p>
@@ -197,8 +197,8 @@ function renderDetail(detail) {
         <p><strong>Cast:</strong> ${safeText(cast.join(", ") || "N/A")}</p>
         <p>${safeText(detail.overview || "No overview available.")}</p>
         <div class="links">
-          <a href="${safeText(playerUrl("videasy", id))}" target="_blank" rel="noopener noreferrer">Watch on Videasy</a>
-          <a href="${safeText(playerUrl("autoembed", id))}" target="_blank" rel="noopener noreferrer">Watch on AutoEmbed</a>
+          <a href="${safeText(playerUrl("videasy", id))}" target="_blank" rel="noopener noreferrer">Server 1</a>
+          <a href="${safeText(playerUrl("autoembed", id))}" target="_blank" rel="noopener noreferrer">Sever 2</a>
         </div>
       </aside>
     </section>
