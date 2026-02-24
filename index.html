@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Hicine Explorer</title>
+  <meta name="description" content="Responsive movie explorer with secure Cloudflare proxy API." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <header class="main-header">
+    <div class="brand-row">
+      <h1>Hicine Explorer</h1>
+      <button id="backButton" class="btn ghost" type="button">Back</button>
+    </div>
+
+    <nav class="category-nav" id="categoryNav" aria-label="Content categories">
+      <button class="cat-btn active" data-category="all">All</button>
+      <button class="cat-btn" data-category="trending">Trending</button>
+      <button class="cat-btn" data-category="recent">Recent</button>
+      <button class="cat-btn" data-category="movies">Movies</button>
+      <button class="cat-btn" data-category="series">Series</button>
+      <button class="cat-btn" data-category="anime">Anime</button>
+    </nav>
+
+    <section class="filters" aria-label="Search and filters">
+      <input id="searchInput" type="search" placeholder="Search movies / series..." autocomplete="off" />
+      <input id="dateFilter" type="date" />
+      <select id="yearFilter">
+        <option value="">All Years</option>
+      </select>
+      <select id="monthFilter">
+        <option value="">All Months</option>
+      </select>
+      <input id="platformInput" type="text" placeholder="Platform (optional)" />
+      <button id="applyFilters" class="btn" type="button">Apply</button>
+    </section>
+  </header>
+
+  <main id="app" class="app" aria-live="polite"></main>
+
+  <footer class="pagination-wrap" id="paginationWrap">
+    <button id="prevPage" class="btn ghost" type="button">Previous</button>
+    <div id="pageNumbers" class="page-numbers"></div>
+    <button id="nextPage" class="btn ghost" type="button">Next</button>
+    <input id="goPageInput" type="number" min="1" value="1" />
+    <button id="goPage" class="btn" type="button">Go</button>
+  </footer>
+
+  <template id="cardTemplate">
+    <article class="movie-card">
+      <img class="poster" alt="" loading="lazy" referrerpolicy="no-referrer" />
+      <div class="meta">
+        <h2 class="title"></h2>
+        <p class="date"></p>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
+
+

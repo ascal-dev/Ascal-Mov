@@ -1,0 +1,232 @@
+:root {
+  --bg: #090f1d;
+  --surface: #121b31;
+  --surface-2: #172341;
+  --text: #eff4ff;
+  --muted: #9fb0d7;
+  --accent: #ffbe3b;
+  --accent-2: #2dd4bf;
+  --danger: #f87171;
+  --ring: rgba(255, 190, 59, 0.4);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Outfit, sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 20% 20%, #18264b, #090f1d 55%);
+  min-height: 100vh;
+}
+
+.bg-glow {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 80% 10%, rgba(45, 212, 191, 0.2), transparent 35%),
+              radial-gradient(circle at 20% 80%, rgba(255, 190, 59, 0.15), transparent 30%);
+  pointer-events: none;
+}
+
+.main-header {
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(10px);
+  background: rgba(9, 15, 29, 0.85);
+  border-bottom: 1px solid #213157;
+  z-index: 20;
+  padding: 12px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 1px;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.category-nav, .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cat-btn, .btn, input, select {
+  border-radius: 10px;
+  border: 1px solid #2a3d6b;
+  background: var(--surface);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.cat-btn.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.btn {
+  cursor: pointer;
+  background: linear-gradient(160deg, #20417a, #1c2e57);
+}
+
+.btn.ghost { background: var(--surface); }
+
+input:focus, select:focus, .btn:focus, .cat-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.filters input, .filters select { min-width: 130px; }
+
+.app {
+  width: min(1300px, 100% - 20px);
+  margin: 16px auto 88px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.movie-card {
+  margin: 0;
+  border: 1px solid #273860;
+  background: linear-gradient(170deg, var(--surface), var(--surface-2));
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.movie-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-2);
+}
+
+.poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+  background: #0f1629;
+}
+
+.meta { padding: 10px; }
+
+.title {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.date {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  gap: 16px;
+}
+
+.detail .poster {
+  border-radius: 12px;
+  border: 1px solid #2b3f6f;
+}
+
+.panel {
+  background: linear-gradient(170deg, var(--surface), var(--surface-2));
+  border: 1px solid #2b3f6f;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.panel h2 { margin: 0 0 8px; }
+
+.link-row {
+  padding: 10px;
+  border: 1px solid #2f456f;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  background: #0f1730;
+}
+
+.link-row p {
+  margin: 0 0 6px;
+  line-height: 1.4;
+}
+
+.link-row a {
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.pagination-wrap {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #22345d;
+  backdrop-filter: blur(8px);
+  background: rgba(9, 15, 29, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  justify-content: center;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.page-number {
+  min-width: 36px;
+  text-align: center;
+}
+
+.page-number.active {
+  border-color: var(--accent);
+  color: #111;
+  background: var(--accent);
+}
+
+.status {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.warning { color: var(--danger); }
+
+@media (max-width: 780px) {
+  .detail { grid-template-columns: 1fr; }
+  .filters input, .filters select, .filters button { flex: 1 1 46%; }
+}
+
+@media (max-width: 420px) {
+  .main-header { padding: 8px; }
+  .filters input, .filters select, .filters button { flex: 1 1 100%; min-width: 0; }
+  .grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+}
+
+@media (max-width: 300px) {
+  .grid { grid-template-columns: 1fr; }
+  .pagination-wrap { flex-wrap: wrap; }
+}
+
