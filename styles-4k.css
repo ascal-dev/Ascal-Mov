@@ -55,10 +55,17 @@ input, select, .btn {
   margin: 10px auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 12px;
+  gap: 8px;
+  align-items: start;
 }
 
-.app4k { grid-column: 1; min-width: 0; }
+.app4k {
+  grid-column: 1;
+  min-width: 0;
+  align-self: start;
+  margin: 0;
+  padding: 0;
+}
 
 .side4k {
   grid-column: 2;
@@ -103,6 +110,7 @@ input, select, .btn {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
   gap: 12px;
+  margin: 0;
 }
 .card {
   border: 1px solid var(--line);
@@ -173,7 +181,7 @@ input, select, .btn {
 .info p { margin: 0 0 8px; color: #d9e6f6; }
 .links { display: grid; gap: 6px; }
 .links a { color: #bde9ff; text-decoration: none; }
-.status { text-align: center; color: var(--muted); padding: 30px 12px; }
+.status { text-align: center; color: var(--muted); padding: 12px 8px; }
 
 @media (max-width: 980px) {
   .controls { grid-template-columns: 1fr 170px 86px; }
