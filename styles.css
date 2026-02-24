@@ -218,7 +218,7 @@ input:focus, select:focus, .btn:focus, .cat-btn:focus {
   margin: 12px auto 18px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 12px;
+  gap: 8px;
   align-items: start;
 }
 
@@ -238,6 +238,9 @@ input:focus, select:focus, .btn:focus, .cat-btn:focus {
 .app {
   grid-column: 1;
   min-width: 0;
+  align-self: start;
+  margin: 0;
+  padding: 0;
 }
 
 .left-sidebar h2 {
@@ -289,6 +292,8 @@ input:focus, select:focus, .btn:focus, .cat-btn:focus {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
   gap: 12px;
+  margin: 0;
+  align-content: start;
 }
 
 .movie-card {
@@ -442,7 +447,7 @@ input:focus, select:focus, .btn:focus, .cat-btn:focus {
 }
 
 .status {
-  padding: 24px;
+  padding: 12px 8px;
   text-align: center;
   color: var(--muted);
 }
