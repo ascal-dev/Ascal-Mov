@@ -4,31 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Hicine Explorer</title>
+  <title>MovieArea</title>
   <meta name="description" content="Responsive movie explorer with secure Cloudflare proxy API." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Oswald:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-noise" aria-hidden="true"></div>
+  <div class="bg-orb orb-a" aria-hidden="true"></div>
+  <div class="bg-orb orb-b" aria-hidden="true"></div>
+
   <header class="main-header">
     <div class="brand-row">
-      <h1>Hicine Explorer</h1>
+      <div>
+        <h1><span class="brand-logo" aria-hidden="true">MA</span> MovieArea</h1>
+        <p class="tagline">Live updates • movies • web series • anime</p>
+      </div>
       <button id="backButton" class="btn ghost" type="button">Back</button>
     </div>
 
-    <nav class="category-nav" id="categoryNav" aria-label="Content categories">
-      <button class="cat-btn active" data-category="all">All</button>
-      <button class="cat-btn" data-category="trending">Trending</button>
-      <button class="cat-btn" data-category="recent">Recent</button>
-      <button class="cat-btn" data-category="movies">Movies</button>
-      <button class="cat-btn" data-category="series">Series</button>
-      <button class="cat-btn" data-category="anime">Anime</button>
-    </nav>
+    <section class="hero-slider-wrap" aria-label="Header slider">
+      <div id="heroSlider" class="hero-slider"></div>
+    </section>
 
     <section class="filters" aria-label="Search and filters">
+      <select id="presetSelect" title="Content presets">
+        <option value="all">All Feed</option>
+        <option value="recent">Recent</option>
+        <option value="trending_movies">Trending Movies</option>
+        <option value="anime_feed">Anime Feed</option>
+        <option value="holly_movies">Holly Movies Trend</option>
+        <option value="bolly_movies">Bolly Movies Trend</option>
+        <option value="holly_series">Holly Series Trend</option>
+        <option value="bolly_series">Bolly Series Trend</option>
+      </select>
+      <select id="categoryFilter" title="Category filter">
+        <option value="">All Categories</option>
+      </select>
       <input id="searchInput" type="search" placeholder="Search movies / series..." autocomplete="off" />
       <input id="dateFilter" type="date" />
       <select id="yearFilter">
@@ -40,9 +54,24 @@
       <input id="platformInput" type="text" placeholder="Platform (optional)" />
       <button id="applyFilters" class="btn" type="button">Apply</button>
     </section>
+
+    <section class="quick-filters" aria-label="Quick filters">
+      <button class="btn ghost quick-btn" type="button" data-quick="trending_movies">Trending Movies</button>
+      <button class="btn ghost quick-btn" type="button" data-quick="ultra_4k">4K Ultra HD MovieArea</button>
+      <button class="btn ghost quick-btn" type="button" data-quick="anime">Anime</button>
+      <button class="btn ghost quick-btn" type="button" data-quick="bolly">Bolly</button>
+      <button class="btn ghost quick-btn" type="button" data-quick="south">South</button>
+    </section>
   </header>
 
-  <main id="app" class="app" aria-live="polite"></main>
+  <div class="layout-shell">
+    <aside class="left-sidebar" id="leftSidebar" aria-label="Trending sidebar">
+      <h2>Trending Movies</h2>
+      <div id="sidebarTrending" class="sidebar-list"></div>
+    </aside>
+
+    <main id="app" class="app" aria-live="polite"></main>
+  </div>
 
   <footer class="pagination-wrap" id="paginationWrap">
     <button id="prevPage" class="btn ghost" type="button">Previous</button>
@@ -65,5 +94,3 @@
   <script type="module" src="./app.js"></script>
 </body>
 </html>
-
-
