@@ -26,6 +26,7 @@ const state = {
   sliderTimer: null,
   hblinksSearchCache: new Map(),
   hblinksPostCache: new Map(),
+  hblinksLoading: new Set(),
 };
 
 const COLLECTION_FALLBACKS = ["movies", "series", "anime"];
@@ -38,6 +39,8 @@ const PRESET_TO_ROUTE = {
   bolly_movies: "/api/trending/bolly_movies",
   holly_series: "/api/trending/series",
   bolly_series: "/api/trending/bolly_series",
+  south_movies: "/api/search/south%20movies",
+  south_series: "/api/search/south%20series",
 };
 
 function safeText(value) {
@@ -568,15 +571,25 @@ async function loadHblinksSearchForItem(item) {
   if (!keyword) return [];
 
   try {
-    const data = await fetchJson(`/api/ext/hblinks-search?keyword=${encodeURIComponent(keyword)}`);
-    const rows = Array.isArray(data) ? data : data?.results || [];
-    const mapped = rows
-      .map((row) => ({
-        id: Number(row.id || 0),
-        title: String(row.title || row.name || "Untitled").replace(/<[^>]*>/g, ""),
-        subtype: String(row.subtype || ""),
-      }))
-      .filter((x) => Number.isFinite(x.id) && x.id > 0);
+    const fetchRows = async (kw) => {
+      const data = await fetchJson(`/api/ext/hblinks-search?keyword=${encodeURIComponent(kw)}`);
+      const rows = Array.isArray(data) ? data : data?.results || [];
+      return rows
+        .map((row) => ({
+          id: Number(row.id || 0),
+          title: String(row.title || row.name || "Untitled").replace(/<[^>]*>/g, ""),
+          subtype: String(row.subtype || ""),
+        }))
+        .filter((x) => Number.isFinite(x.id) && x.id > 0);
+    };
+
+    let mapped = await fetchRows(keyword);
+    if (!mapped.length) {
+      const fallbackKeyword = keyword.replace(/\s*\(\d{4}\)\s*/g, " ").trim();
+      if (fallbackKeyword && fallbackKeyword !== keyword) {
+        mapped = await fetchRows(fallbackKeyword);
+      }
+    }
 
     state.hblinksSearchCache.set(key, mapped);
     return mapped;
@@ -720,6 +733,18 @@ function renderDetailView(item, links, seasonSelected, hblinksRows = []) {
       window.location.hash = `#/hblink/${encodeURIComponent(el.dataset.id || "")}`;
     });
   });
+
+  const key = `${item.collection}:${item.id}`;
+  if (!hblinksRows.length && !state.hblinksLoading.has(key)) {
+    state.hblinksLoading.add(key);
+    loadHblinksSearchForItem(item)
+      .then((rows) => {
+        renderDetailView(item, links, seasonSelected, rows);
+      })
+      .finally(() => {
+        state.hblinksLoading.delete(key);
+      });
+  }
 }
 
 function renderHblinkPage(postData) {
@@ -852,9 +877,16 @@ function bindEvents() {
       } else if (key === "bolly") {
         if (presetSelect) presetSelect.value = "all";
         if (categoryFilter) categoryFilter.value = "Bolly";
-      } else if (key === "south") {
-        if (presetSelect) presetSelect.value = "all";
-        if (categoryFilter) categoryFilter.value = "South";
+      } else if (key === "south_movies") {
+        if (presetSelect) presetSelect.value = "south_movies";
+        if (!setCategoryByPriority(["South", "South Movies"])) {
+          if (categoryFilter) categoryFilter.value = "";
+        }
+      } else if (key === "south_series") {
+        if (presetSelect) presetSelect.value = "south_series";
+        if (!setCategoryByPriority(["South", "South Series"])) {
+          if (categoryFilter) categoryFilter.value = "";
+        }
       }
 
       state.page = 1;
