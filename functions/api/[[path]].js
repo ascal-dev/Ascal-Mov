@@ -1,19 +1,28 @@
-const TOKEN_TTL_SECONDS = 45;
+const TOKEN_TTL_SECONDS = 20;
 const RATE_WINDOW_MS = 60 * 1000;
-const MAX_API_REQ_PER_WINDOW = 180;
-const MAX_TOKEN_REQ_PER_WINDOW = 50;
+const MAX_API_REQ_PER_WINDOW = 120;
+const MAX_TOKEN_REQ_PER_WINDOW = 24;
 const MAX_PATH_LENGTH = 180;
 const MAX_TOKEN_LENGTH = 1200;
+const MAX_ID_LENGTH = 120;
+const REQUIRED_XRW = "xmlhttprequest";
+
+const EXT_SLIDER = "/ext/slider";
+const EXT_HBLINKS_SEARCH = "/ext/hblinks-search";
+const EXT_HBLINKS_POST_PREFIX = "/ext/hblinks-post/";
 
 const ALLOWED = [
   /^\/health$/,
   /^\/stats$/,
-  /^\/trending(?:\/(movies|series|anime))?$/,
-  /^\/recent(?:\/(movies|series|anime))?$/,
-  /^\/platform\/[A-Za-z0-9_-]+(?:\/(movies|series|anime))?$/,
+  /^\/trending(?:\/(movies|series|anime|bolly_movies|bolly_series))?$/,
+  /^\/recent(?:\/(movies|series|anime|bolly_movies|bolly_series))?$/,
+  /^\/platform\/[A-Za-z0-9_-]+(?:\/(movies|series|anime|bolly_movies|bolly_series))?$/,
   /^\/search\/[A-Za-z0-9%._-]+$/,
-  /^\/[A-Za-z0-9_-]+$/,
-  /^\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/
+  /^\/(movies|series|anime)$/,
+  /^\/(movies|series|anime)\/[A-Za-z0-9._:-]+$/,
+  /^\/ext\/slider$/,
+  /^\/ext\/hblinks-search$/,
+  /^\/ext\/hblinks-post\/[0-9]+$/
 ];
 
 const rateStore = new Map();
@@ -50,17 +59,27 @@ function deny(status = 404) {
 }
 
 function normalizePath(pathValue) {
-  return `/${String(pathValue || "").replace(/^\/+/, "").slice(0, MAX_PATH_LENGTH)}`;
+  return `/${String(pathValue || "").replace(/^\/+/, "")}`;
 }
 
 function isAllowedPath(path) {
   return ALLOWED.some((rule) => rule.test(path));
 }
 
+function pathShapeValid(path) {
+  if (!path || path.length > MAX_PATH_LENGTH) return false;
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length === 0) return false;
+  if (parts.length === 2 && ["movies", "series", "anime"].includes(parts[0])) {
+    return parts[1].length > 0 && parts[1].length <= MAX_ID_LENGTH;
+  }
+  return true;
+}
+
 function validUpstreamOrigin(rawOrigin) {
   try {
     const parsed = new URL(rawOrigin);
-    return parsed.protocol === "https:" && parsed.hostname === "api.hicine.info";
+    return parsed.protocol === "https:" && parsed.hostname === "api.hicine.info" && !parsed.username && !parsed.password;
   } catch {
     return false;
   }
@@ -255,6 +274,50 @@ function validFetchSite(request) {
   return value === "same-origin" || value === "same-site";
 }
 
+function validFetchContext(request) {
+  const mode = (request.headers.get("sec-fetch-mode") || "").toLowerCase();
+  const dest = (request.headers.get("sec-fetch-dest") || "").toLowerCase();
+  return mode === "cors" && dest === "empty";
+}
+
+function validRequestedWith(request) {
+  const value = (request.headers.get("x-requested-with") || "").toLowerCase();
+  return value === REQUIRED_XRW;
+}
+
+function isHblinksPostPath(path) {
+  return path.startsWith(EXT_HBLINKS_POST_PREFIX);
+}
+
+async function proxyJsonFromUrl(targetUrl, cacheTtl = 120) {
+  let upstream;
+  try {
+    upstream = await fetch(targetUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "HicineSecureWorker/2.0"
+      },
+      cf: { cacheEverything: true, cacheTtl }
+    });
+  } catch {
+    return deny(502);
+  }
+
+  const ctype = (upstream.headers.get("Content-Type") || "").toLowerCase();
+  if (!upstream.ok || !ctype.includes("application/json")) return deny(404);
+
+  const body = await upstream.arrayBuffer();
+  return new Response(body, {
+    status: 200,
+    headers: {
+      ...securityHeaders(),
+      "Content-Type": upstream.headers.get("Content-Type") || "application/json; charset=utf-8",
+      "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=300"
+    }
+  });
+}
+
 export async function onRequest(context) {
   const { request, params, env } = context;
 
@@ -266,18 +329,22 @@ export async function onRequest(context) {
     return deny(503);
   }
 
-  if (request.method !== "GET") {
-    return deny(404);
-  }
+  if (request.method !== "GET") return deny(404);
 
-  if (!hasAcceptJson(request) || !validFetchSite(request) || !originAllowed(request, allowedOrigins)) {
+  if (
+    !hasAcceptJson(request) ||
+    !validFetchSite(request) ||
+    !validFetchContext(request) ||
+    !validRequestedWith(request) ||
+    !originAllowed(request, allowedOrigins)
+  ) {
     return deny(403);
   }
 
   const pathValue = Array.isArray(params.path) ? params.path.join("/") : params.path;
   const normalizedPath = normalizePath(pathValue);
 
-  if (!normalizedPath || normalizedPath === "/") {
+  if (!normalizedPath || normalizedPath === "/" || !pathShapeValid(normalizedPath)) {
     return deny(404);
   }
 
@@ -285,15 +352,11 @@ export async function onRequest(context) {
 
   if (normalizedPath === "/token") {
     const tokenLimit = checkRateLimit("token", clientIp, MAX_TOKEN_REQ_PER_WINDOW);
-    if (!tokenLimit.ok) {
-      return deny(429);
-    }
+    if (!tokenLimit.ok) return deny(429);
 
     const url = new URL(request.url);
     const targetPath = normalizePath(url.searchParams.get("path") || "");
-    if (!targetPath || targetPath.length > MAX_PATH_LENGTH || !isAllowedPath(targetPath)) {
-      return deny(404);
-    }
+    if (!targetPath || !pathShapeValid(targetPath) || !isAllowedPath(targetPath)) return deny(404);
 
     const reqOrigin = getRequestOrigin(request);
     const token = await issueToken(targetPath, "GET", reqOrigin, clientIp, hmacSecret);
@@ -304,30 +367,44 @@ export async function onRequest(context) {
     });
   }
 
-  if (!isAllowedPath(normalizedPath)) {
-    return deny(404);
-  }
+  if (!isAllowedPath(normalizedPath)) return deny(404);
 
   const apiLimit = checkRateLimit("api", clientIp, MAX_API_REQ_PER_WINDOW);
-  if (!apiLimit.ok) {
-    return deny(429);
-  }
+  if (!apiLimit.ok) return deny(429);
 
   const providedToken = request.headers.get("x-proxy-token") || "";
   if (providedToken.length > MAX_TOKEN_LENGTH) return deny(401);
 
   const reqOrigin = getRequestOrigin(request);
   const tokenCheck = await verifyToken(providedToken, normalizedPath, "GET", reqOrigin, clientIp, hmacSecret);
+  if (!tokenCheck.ok || !consumeTokenNonce(tokenCheck.nonce, tokenCheck.exp)) return deny(401);
 
-  if (!tokenCheck.ok || !consumeTokenNonce(tokenCheck.nonce, tokenCheck.exp)) {
-    return deny(401);
+  const reqUrl = new URL(request.url);
+
+  if (normalizedPath === EXT_SLIDER) {
+    return proxyJsonFromUrl("https://dns.pingora.fyi/v2/ping", 90);
+  }
+
+  if (normalizedPath === EXT_HBLINKS_SEARCH) {
+    const keywordRaw = (reqUrl.searchParams.get("keyword") || "").trim();
+    const keyword = keywordRaw.slice(0, 80);
+    if (!keyword) return deny(404);
+    const target = `https://hblinks.dad/wp-json/wp/v2/search?search=${encodeURIComponent(keyword)}`;
+    return proxyJsonFromUrl(target, 120);
+  }
+
+  if (isHblinksPostPath(normalizedPath)) {
+    const id = normalizedPath.slice(EXT_HBLINKS_POST_PREFIX.length);
+    if (!/^\d+$/.test(id)) return deny(404);
+    const target = `https://hblinks.dad/wp-json/wp/v2/posts/${id}`;
+    return proxyJsonFromUrl(target, 180);
   }
 
   const upstreamPath = normalizedPath === "/health" ? "/health" : `/api${normalizedPath}`;
   const target = new URL(upstreamPath, apiOrigin);
   const upstreamHeaders = {
     Accept: "application/json",
-    "User-Agent": "HicineSecureWorker/1.1"
+    "User-Agent": "HicineSecureWorker/2.0"
   };
 
   if (env.HICINE_API_KEY) {
@@ -345,9 +422,8 @@ export async function onRequest(context) {
     return deny(502);
   }
 
-  if (!upstream.ok) {
-    return deny(404);
-  }
+  const ctype = (upstream.headers.get("Content-Type") || "").toLowerCase();
+  if (!upstream.ok || !ctype.includes("application/json")) return deny(404);
 
   const body = await upstream.arrayBuffer();
   const headers = new Headers();
